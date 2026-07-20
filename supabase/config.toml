@@ -1,0 +1,11 @@
+# Minimal config for local CLI / migration reference.
+# Cloud project: https://ktzwxalwyoaysbvrdmsm.supabase.co
+
+project_id = "ktzwxalwyoaysbvrdmsm"
+
+[auth]
+enabled = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false

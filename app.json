@@ -1,0 +1,52 @@
+{
+  "expo": {
+    "name": "Kasa360",
+    "slug": "kasa360",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "kasa360",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0E8C63"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.kasa360.app",
+      "infoPlist": {
+        "UIBackgroundModes": ["remote-notification"]
+      }
+    },
+    "android": {
+      "package": "com.kasa360.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0E8C63"
+      },
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.SCHEDULE_EXACT_ALARM"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-asset",
+      [
+        "expo-notifications",
+        {
+          "color": "#0E8C63",
+          "defaultChannel": "reminders",
+          "sounds": []
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
