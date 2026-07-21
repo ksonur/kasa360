@@ -3,15 +3,15 @@
 ```
 React Native (Expo)
         |
- Supabase Auth (Email OTP)
+ Railway API (Hono) — Email OTP + JWT
         |
- PostgreSQL (RLS, workspace_id izolasyonu)
+ PostgreSQL (Railway) — workspace_id izolasyonu (API katmanında yetki)
         |
- Edge Functions
-   ├── Bildirim Servisi (kademeli hatırlatmalar: 7g/1g/gün içi, kullanıcı tercihine göre)
-   ├── Hesaplama Servisi (bakiye, hedef ilerleme, what-if senaryo, bütçe özeti, ekstre uzlaştırma)
-   ├── Varlık Endeksleme Servisi (TCMB EVDS — TÜFE/döviz kuru serileri, periyodik güncelleme önerisi)
-   └── Mail Entegrasyon Servisi (Faz 2 — OAuth + parser)
+    Workers (ileride, Railway cron veya ayrı servis)
+   ├── Bildirim Servisi
+   ├── Hesaplama Servisi
+   ├── Varlık Endeksleme (TCMB EVDS)
+   └── Mail Entegrasyon (Faz 2)
         |
  Notifications (push / in-app / home-screen widget)
 ```
@@ -50,3 +50,22 @@ mail-integration/ (Faz 2)
 - **Ana Ekran Widget'ı**: Expo/React Native native widget modülü (iOS WidgetKit / Android App Widget); Hesaplama Servisi'nin ürettiği "kalan bütçe" özetini düşük frekansta (ör. günde birkaç kez) çeken hafif, salt-okunur bir uç nokta üzerinden beslenir.
 - **Taksit Tahmini**: Hesaplama Servisi, `installment_purchases` tablosundaki `remaining_installments` ve `monthly_amount` alanlarını kullanarak gelecek ayların kart/nakit yükünü önceden hesaplar; bu veri Nakit Akışı Takvimi'ne ve "gelecekte kartıma ne kadar ödeyeceğim" görünümüne beslenir. Kredi kartı taksitleri ekstre uzlaştırma mantığına dahildir, nakit taksitler dahil değildir.
 - **Görsel Kimlik**: Frontend tarafında ana renk paleti yeşil ve beyaz olarak sabitlenir (design tokens seviyesinde tanımlanır, feature modülleri arasında tutarlılık için).
+
+## Dağıtım ve hosting
+
+### Sabit karar (Supabase’siz)
+| Parça | Host |
+|-------|------|
+| Expo mobil binary | EAS → TestFlight / App Store (**Railway’de app çalışmaz**) |
+| HTTP API + Auth OTP | **Railway** — `backend/` |
+| PostgreSQL | **Railway Postgres** |
+| İleride cron (bildirim, TCMB) | Aynı Railway proje / ek servis |
+
+```
+Expo ──HTTPS──► Railway API ──► Postgres
+```
+
+Ayrıntı: [STACK.md](STACK.md), [PUBLISH.md](PUBLISH.md).
+
+### Geçiş dönemi
+Finans domain verisi hâlâ cihazda (AsyncStorage). Auth/workspace API’de. Domain sync sonraki sprint.

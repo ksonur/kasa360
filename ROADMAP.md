@@ -47,16 +47,21 @@
 - MTV varsayılan dönem mantığı (Ocak/Temmuz)
 
 ## Sprint 8 — Bildirimler
-- Merkezi bildirim servisi (edge function)
+- Merkezi bildirim servisi (edge function **veya** Railway cron worker — bkz. ARCHITECTURE.md dağıtım)
 - Kredi kartı, vergi, sigorta, kasko, tek seferlik gider hatırlatmaları
 - Kademeli bildirim (7 gün önce / 1 gün önce / gün içi), kullanıcı bazlı tercih ayarı
+- Önkoşul: ilgili domain verinin Supabase’te olması; istemci AsyncStorage-only iken sunucu cron’u açılmaz
 
 ## Sprint 9 — Finansal İçgörü / Raporlar
 - Aylık bütçe durumu özeti
 - Harcama eğilimi analizi (kategori bazlı, ör. "bu ay yemeğe çok harcadın")
 - Hedeflere ilerleyiş raporu
-- Varlık değeri endeksleme (TCMB EVDS — TÜFE/döviz kuru önerisi, kullanıcı onaylı)
+- Varlık değeri endeksleme (TCMB EVDS — TÜFE/döviz kuru önerisi, kullanıcı onaylı; scheduled job: Edge veya Railway)
 - Ana ekran widget'ı (kalan bütçe özeti)
+
+## Hosting notu (sürekli)
+- Expo uygulaması Railway’de barındırılmaz.
+- Railway yalnızca Sprint 8/9 (ve Faz 2 mail) worker ihtiyacı doğunca değerlendirilir.
 
 ## Sprint 10 — Dışa Aktarım
 - CSV export

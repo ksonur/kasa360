@@ -3,7 +3,7 @@
 ## Genel
 - TypeScript strict mode.
 - React Native + Expo.
-- Supabase backend.
+- Backend: Railway API (Hono) + PostgreSQL (Supabase yok).
 - Feature-based architecture.
 - Önce mimari, sonra kod.
 - Float kullanma, numeric kullan.

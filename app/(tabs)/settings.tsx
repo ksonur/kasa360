@@ -238,7 +238,7 @@ export default function SettingsTab() {
             <Text variant="heading">Hesap</Text>
           </View>
           <Text variant="caption" color={colors.textMuted}>
-            {session.user.email}
+            {session.email}
           </Text>
           <Button
             label="Çıkış yap"

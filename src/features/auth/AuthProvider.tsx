@@ -7,12 +7,19 @@ import {
   useMemo,
   useState,
 } from 'react';
-import * as Linking from 'expo-linking';
-import type { Session } from '@supabase/supabase-js';
-import { supabase } from '@/lib/supabase';
-import { createSessionFromUrl, getAuthRedirectUrl } from './deepLink';
-import { loadProfileAndWorkspace, setOnboardingCompleted } from './workspace';
+import {
+  apiFetch,
+  clearTokens,
+  loadTokens,
+  saveTokens,
+} from '@/lib/api';
 import type { UserProfile, Workspace } from './types';
+
+interface Session {
+  userId: string;
+  email: string;
+  accessToken: string;
+}
 
 interface AuthContextValue {
   session: Session | null;
@@ -28,9 +35,17 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-async function hydrateUser(userId: string) {
-  return loadProfileAndWorkspace(userId);
-}
+type MeResponse = {
+  user: UserProfile;
+  workspace: Workspace | null;
+};
+
+type VerifyResponse = {
+  accessToken: string;
+  refreshToken: string;
+  user: UserProfile;
+  workspace: Workspace | null;
+};
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -38,117 +53,105 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const applySession = useCallback(async (next: Session | null) => {
-    setSession(next);
-    if (!next?.user) {
+  const applyMe = useCallback(async (accessToken: string) => {
+    const { data, error } = await apiFetch<MeResponse>('/auth/me');
+    if (error || !data?.user) {
+      await clearTokens();
+      setSession(null);
       setProfile(null);
       setWorkspace(null);
       return;
     }
-    const { profile: p, workspace: w } = await hydrateUser(next.user.id);
-    setProfile(p);
-    setWorkspace(w);
+    setSession({
+      userId: data.user.id,
+      email: data.user.email,
+      accessToken,
+    });
+    setProfile(data.user);
+    setWorkspace(data.workspace);
   }, []);
 
   useEffect(() => {
     let mounted = true;
-
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (!mounted) return;
+    (async () => {
       try {
-        await applySession(data.session);
+        const tokens = await loadTokens();
+        if (!mounted) return;
+        if (tokens.accessToken) {
+          await applyMe(tokens.accessToken);
+        }
       } finally {
         if (mounted) setLoading(false);
       }
-    });
-
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, next) => {
-      try {
-        await applySession(next);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    });
-
+    })();
     return () => {
       mounted = false;
-      sub.subscription.unsubscribe();
     };
-  }, [applySession]);
-
-  // Magic link → uygulama deep link
-  useEffect(() => {
-    let mounted = true;
-
-    const handle = async (url: string | null) => {
-      if (!url || !mounted) return;
-      const { error } = await createSessionFromUrl(url);
-      if (error) {
-        console.warn('[auth] deep link:', error);
-      }
-    };
-
-    void Linking.getInitialURL().then(handle);
-    const sub = Linking.addEventListener('url', ({ url }) => {
-      void handle(url);
-    });
-    return () => {
-      mounted = false;
-      sub.remove();
-    };
-  }, []);
+  }, [applyMe]);
 
   const signInWithOtp = useCallback(async (email: string) => {
-    const redirectTo = getAuthRedirectUrl();
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim().toLowerCase(),
-      options: {
-        shouldCreateUser: true,
-        emailRedirectTo: redirectTo,
-      },
+    const { error } = await apiFetch<{ ok: boolean }>('/auth/otp/request', {
+      method: 'POST',
+      body: JSON.stringify({ email: email.trim().toLowerCase() }),
     });
-    return { error: error?.message ?? null };
+    return { error };
   }, []);
 
   const verifyOtp = useCallback(async (email: string, token: string) => {
-    const { data, error } = await supabase.auth.verifyOtp({
-      email: email.trim().toLowerCase(),
-      token: token.trim(),
-      type: 'email',
+    const { data, error } = await apiFetch<VerifyResponse>('/auth/otp/verify', {
+      method: 'POST',
+      body: JSON.stringify({
+        email: email.trim().toLowerCase(),
+        code: token.trim(),
+      }),
     });
-    if (error) return { error: error.message };
-    if (data.session) {
-      await applySession(data.session);
-    }
+    if (error || !data) return { error: error ?? 'Doğrulama başarısız' };
+
+    await saveTokens({
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken,
+    });
+    setSession({
+      userId: data.user.id,
+      email: data.user.email,
+      accessToken: data.accessToken,
+    });
+    setProfile(data.user);
+    setWorkspace(data.workspace);
     return { error: null };
-  }, [applySession]);
+  }, []);
 
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
+    const tokens = await loadTokens();
+    await apiFetch('/auth/logout', {
+      method: 'POST',
+      body: JSON.stringify({ refreshToken: tokens.refreshToken }),
+    });
+    await clearTokens();
     setSession(null);
     setProfile(null);
     setWorkspace(null);
   }, []);
 
   const refreshProfile = useCallback(async () => {
-    if (!session?.user) return;
-    const { profile: p, workspace: w } = await hydrateUser(session.user.id);
-    setProfile(p);
-    setWorkspace(w);
-  }, [session?.user]);
+    const tokens = await loadTokens();
+    if (!tokens.accessToken) return;
+    await applyMe(tokens.accessToken);
+  }, [applyMe]);
 
   const markOnboardingCompleted = useCallback(async () => {
-    if (!session?.user) {
-      return { error: 'Oturum yok' };
+    const { data, error } = await apiFetch<{ user: UserProfile }>(
+      '/auth/me/onboarding',
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ completed: true }),
+      }
+    );
+    if (!error && data?.user) {
+      setProfile(data.user);
     }
-    const result = await setOnboardingCompleted(session.user.id, true);
-    if (!result.error) {
-      setProfile((prev) =>
-        prev ? { ...prev, onboarding_completed: true } : prev
-      );
-    }
-    return result;
-  }, [session?.user]);
+    return { error };
+  }, []);
 
   const value = useMemo<AuthContextValue>(
     () => ({

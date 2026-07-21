@@ -3,6 +3,9 @@ node_modules/
 .expo/
 dist/
 web-build/
+*.apk
+*.aab
+*.ipa
 *.log
 npm-debug.*
 
@@ -14,6 +17,9 @@ android/
 .env
 .env.*
 !.env.example
+backend/.env
+backend/node_modules/
+backend/dist/
 
 # Tooling / local
 .claude/
