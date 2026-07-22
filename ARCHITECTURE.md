@@ -67,5 +67,7 @@ Expo ──HTTPS──► Railway API ──► Postgres
 
 Ayrıntı: [STACK.md](STACK.md), [PUBLISH.md](PUBLISH.md).
 
-### Geçiş dönemi
-Finans domain verisi hâlâ cihazda (AsyncStorage). Auth/workspace API’de. Domain sync sonraki sprint.
+### Veri kaynağı
+Auth + **tüm domain state** Railway Postgres’te (`workspace_docs` + users/workspaces).  
+Expo AsyncStorage yalnızca önbellek / oturumsuz (AUTH_BYPASS) mod.  
+API: `/auth/*`, `/sync/docs/:key`.
