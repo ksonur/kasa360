@@ -1,52 +1,45 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { ExtraIncome, FinanceState, LocalTransaction } from './types';
-
-const STORAGE_KEY = '@kasa360/finance_v1';
-/** Eski tek liste anahtarı — bir kez migrate edilir. */
-const LEGACY_TX_KEY = '@kasa360/transactions_v1';
+import { loadDoc, saveDoc } from '@/lib/docs';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const EMPTY: FinanceState = {
   transactions: [],
   extraIncomes: [],
 };
 
-export async function loadFinanceState(): Promise<FinanceState> {
+async function migrateLegacyFinance(): Promise<void> {
+  const legacy = await AsyncStorage.getItem('@kasa360/finance_v1');
+  if (legacy) return;
+  const oldTx = await AsyncStorage.getItem('@kasa360/transactions_v1');
+  if (!oldTx) return;
   try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as FinanceState;
-      return {
-        transactions: Array.isArray(parsed.transactions)
-          ? parsed.transactions
-          : [],
-        extraIncomes: Array.isArray(parsed.extraIncomes)
-          ? parsed.extraIncomes
-          : [],
-      };
-    }
-
-    const legacy = await AsyncStorage.getItem(LEGACY_TX_KEY);
-    if (legacy) {
-      const list = JSON.parse(legacy) as LocalTransaction[];
-      const migrated: FinanceState = {
-        transactions: Array.isArray(list) ? list : [],
-        extraIncomes: [],
-      };
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
-      return migrated;
-    }
-
-    return EMPTY;
+    const list = JSON.parse(oldTx) as LocalTransaction[];
+    const migrated: FinanceState = {
+      transactions: Array.isArray(list) ? list : [],
+      extraIncomes: [],
+    };
+    await AsyncStorage.setItem('@kasa360/finance_v1', JSON.stringify(migrated));
   } catch {
-    return EMPTY;
+    // ignore
   }
 }
 
-export async function saveFinanceState(state: FinanceState): Promise<void> {
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+export async function loadFinanceState(): Promise<FinanceState> {
+  await migrateLegacyFinance();
+  const parsed = await loadDoc<FinanceState>('finance', EMPTY, [
+    '@kasa360/finance_v1',
+  ]);
+  return {
+    transactions: Array.isArray(parsed.transactions) ? parsed.transactions : [],
+    extraIncomes: Array.isArray(parsed.extraIncomes) ? parsed.extraIncomes : [],
+  };
 }
 
-/** @deprecated — loadFinanceState kullan */
+export async function saveFinanceState(state: FinanceState): Promise<void> {
+  await saveDoc('finance', state);
+}
+
+/** @deprecated */
 export async function loadTransactions(): Promise<LocalTransaction[]> {
   const s = await loadFinanceState();
   return s.transactions;

@@ -1,6 +1,6 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { OnboardingState } from './types';
 import { migrateOvertimeFields, migrateSalaryFields } from './monthlyAmounts';
+import { clearDoc, loadDoc, saveDoc } from '@/lib/docs';
 
 export type OnboardingStep =
   | 'income'
@@ -14,8 +14,6 @@ export interface OnboardingDraft {
   completed: boolean;
   currentStep: OnboardingStep;
 }
-
-const STORAGE_KEY = '@kasa360/onboarding_draft_v1';
 
 export const STEP_ROUTES = {
   income: '/onboarding/income',
@@ -53,26 +51,26 @@ function normalizeData(raw: LegacyData): OnboardingState {
   };
 }
 
+const EMPTY: OnboardingDraft | null = null;
+
 export async function loadDraft(): Promise<OnboardingDraft | null> {
-  try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as OnboardingDraft;
-    if (!parsed?.data || typeof parsed.completed !== 'boolean') return null;
-    return {
-      data: normalizeData(parsed.data as LegacyData),
-      completed: parsed.completed,
-      currentStep: parsed.currentStep ?? 'income',
-    };
-  } catch {
-    return null;
-  }
+  const parsed = await loadDoc<OnboardingDraft | null>(
+    'onboarding',
+    EMPTY,
+    ['@kasa360/onboarding_draft_v1']
+  );
+  if (!parsed?.data || typeof parsed.completed !== 'boolean') return null;
+  return {
+    data: normalizeData(parsed.data as LegacyData),
+    completed: parsed.completed,
+    currentStep: parsed.currentStep ?? 'income',
+  };
 }
 
 export async function saveDraft(draft: OnboardingDraft): Promise<void> {
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
+  await saveDoc('onboarding', draft);
 }
 
 export async function clearDraft(): Promise<void> {
-  await AsyncStorage.removeItem(STORAGE_KEY);
+  await clearDoc('onboarding');
 }

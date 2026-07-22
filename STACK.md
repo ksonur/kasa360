@@ -19,8 +19,10 @@ OTP mail: API → SMTP (`SMTP_*` env).
 | Mobil UI | Expo → TestFlight / EAS |
 | HTTP API | **Railway** (`backend/`) |
 | PostgreSQL | **Railway Postgres** |
-| Auth | API: `/auth/otp/*` + JWT |
+| Auth | `/auth/otp/*` + JWT |
+| Tüm domain veri | `/sync/docs/*` → `workspace_docs` (onboarding, finance, cards, …) |
 
+Oturum açıkken AsyncStorage sadece önbellek; kaynak gerçeklik Postgres.
 Supabase kullanılmaz.
 
 ## Yerel geliştirme
